@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Drawing;
 using System.Collections.Generic;
 
@@ -9,6 +10,13 @@ App.Open<OthelloView>();
 public struct OthelloGame
 {
     private const ulong u = 1;
+
+    public bool WhitePlays => whitePlays == 1;
+    public byte WhitePoints => whiteCount;
+    public byte BlackPoints => blackCount;
+
+    public void Pass()
+        => whitePlays = (byte)(1 - whitePlays);
 
     private ulong whiteInfo;
     private ulong blackInfo;
@@ -29,6 +37,7 @@ public struct OthelloGame
     }
 
     public static OthelloGame New(
+        byte whitePlays,
         ulong white, ulong black,
         byte wCount, byte bCount
     )
@@ -38,7 +47,8 @@ public struct OthelloGame
             whiteInfo = white,
             blackInfo = black,
             whiteCount = wCount,
-            blackCount = bCount
+            blackCount = bCount,
+            whitePlays = whitePlays
         };
     }
 
@@ -58,6 +68,10 @@ public struct OthelloGame
 
 public class OthelloView : View
 {
+    const string m1 = "m1.txt";
+    const string m2 = "m2.txt";
+    int passCount = 0;
+
     OthelloGame game = OthelloGame.New();
 
     protected override void OnStart(IGraphics g)
@@ -70,7 +84,41 @@ public class OthelloView : View
 
     protected override void OnFrame(IGraphics g)
     {
+        if (passCount > 1)
+            return;
+
+        if (game.WhitePlays)
+            get(m1, m2);
+        else get(m2, m1);
         
+        void get(string path, string other)
+        {
+            if (!File.Exists(path))
+                return;
+            
+            var text = File.ReadAllText(path);
+            if (text != "pass")
+            {
+                var content = text.Split(' ');
+                this.game = OthelloGame.New(
+                    byte.Parse(content[0]),
+                    ulong.Parse(content[1]),
+                    ulong.Parse(content[3]),
+                    byte.Parse(content[2]),
+                    byte.Parse(content[4])
+                );
+                passCount = 0;
+            }
+            else
+            {
+                passCount++;
+                this.game.Pass();
+            }
+            File.Delete(path);
+
+            File.WriteAllText("[OUTPUT]" + other, this.game.ToString());
+            Invalidate();
+        }   
     }
 
     protected override void OnRender(IGraphics g)
@@ -94,6 +142,20 @@ public class OthelloView : View
             new RectangleF(0, 0, 150, 150), 
             StringAlignment.Center, StringAlignment.Center,
             Brushes.White, "debugInfo:\n" + game.ToString());
+
+        string winInfo = string.Empty;
+        if (passCount > 1)
+        {
+            if (game.WhitePoints > game.BlackPoints)
+                winInfo = "White Wins!";
+            else if (game.WhitePoints == game.BlackPoints)
+                winInfo = "Tie!";
+            else winInfo = "Black Wins!";
+        }
+        g.DrawText(
+            new RectangleF(x0 + boardSize, 0, 150, 150), 
+            StringAlignment.Center, StringAlignment.Center,
+            Brushes.White, $"W {game.WhitePoints} x {game.BlackPoints} B\n{winInfo}");
         g.FillRectangle(
             x - boardPadding, y - boardPadding, 
             boardSize, boardSize,
