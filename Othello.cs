@@ -91,6 +91,7 @@ public struct Othello
     public void Play(int i)
     {
         myBoard += u << i;
+        myCount++;
         // Play
         turnSides(i, 1);
         turnSides(i, -1);
@@ -115,6 +116,8 @@ public struct Othello
         int colInGame = i / 8;
         bool flag = false;
 
+        if (((enemyBoard & (u << i)) > 0) | ((myBoard & (u << i)) > 0))
+            return false;
 
         // Verifying if surrounded by enemy pieces
         for (int shiftI = colInGame - 1; shiftI <= colInGame + 1; shiftI++)
